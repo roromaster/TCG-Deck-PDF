@@ -8,11 +8,20 @@ import glob
 import urllib.request
 import subprocess
 import html.parser
+from selenium import webdriver
 from functools import partial
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+import time
+from PIL import Image, ImageDraw, ImageFont
+import textwrap
+
 
 
 # TODO: accept as parameter
-URL_EXAMPLE = "https://www.keyforgegame.com/deck-details/4608a62e-71b4-4e61-8093-fff5bf402c76"
+URL_EXAMPLE = "http://www.keyforgegame.com/deck-details/b8d160dc-36a8-4009-a85e-6690fc706f56"
 
 
 # TODO: Select Expansion from Deck list
@@ -26,17 +35,18 @@ JPEG_QUALITY = "94"
 
 
 FILE_PATTERN = "[0-9][0-9][0-9]*"
-USER_AGENT = (
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) ' +
-    'AppleWebKit/537.36 (KHTML, like Gecko) ' +
-    'Chrome/35.0.1916.47 Safari/537.36'
-)
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64;)"
 
+DECK_NAME = "result.pdf"
 
 class HTMLParser(html.parser.HTMLParser):
     def __init__(self):
         super(HTMLParser, self).__init__()
         self.cards = []
+        self.deckname = ""
+        self.in_deckname = False
+        self.in_expansion = False
+        self.expansion = ""
 
     def handle_starttag(self, tag, attrs):
         NUMBER_CLASS = "card-table__deck-card-number"
@@ -44,14 +54,38 @@ class HTMLParser(html.parser.HTMLParser):
             (tag == 'span') and
             ("class", NUMBER_CLASS) in attrs
         )
+        NUMBER_CLASS = "deck-details__deck-name keyforge-heading-1"
+        self.in_deckname = (
+            (tag == 'h1') and
+            ("class", NUMBER_CLASS) in attrs
+        )
+        NUMBER_CLASS = "deck-details__deck-expansion"
+        self.in_expansion = (
+            (tag == 'div') and
+            ("class", NUMBER_CLASS) in attrs
+        )
+
 
     def handle_endtag(self, tag):
         if self.in_card_number_span and tag == 'span':
             self.in_card_number_span = False
+        if self.in_deckname and tag == 'h1':
+            self.in_deckname = False
+        if self.in_expansion and tag == 'div':
+            self.in_expansion = False
+
 
     def handle_data(self, data):
         if self.in_card_number_span:
             self.cards.append(int(data))
+            print(data)
+        if self.in_deckname:
+            self.deckname = data
+            print(self.deckname)
+        if self.in_expansion:
+            self.expansion = data
+            print(data)
+
 
 
 def rm(fname):
@@ -88,8 +122,12 @@ def get_deck_page(url):
 
 
 def get_card_list(text):
+    global OUTPUT_FILE
+    global DECK_NAME
     parser = HTMLParser()
     parser.feed(text)
+    OUTPUT_FILE = parser.deckname + ".pdf"
+    DECK_NAME = parser.deckname
     return parser.cards
 
 
@@ -136,16 +174,49 @@ def build_pdf(card_list):
     for f in fs:
         rm(f)
 
+def build_cardback():
+    para = textwrap.wrap(DECK_NAME, width=30)
+
+    MAX_W, MAX_H = 300, 50
+    # create Image object with the input image
+    image = Image.open('./keyforge_back.png')
+
+    # initialise the drawing context with
+    # the image object as background
+    draw = ImageDraw.Draw(image)
+    color = 'rgb(255, 255, 255)' # white color
+    font = ImageFont.truetype('Geneva.dfont', size=12)
+
+    current_h, pad = 388, 0
+    for line in para:
+        w, h = draw.textsize(line, font=font)
+        draw.text(((MAX_W - w) / 2, current_h), line,fill=color, font=font)
+        current_h += h + pad
+
+    # save the edited image
+
+    image.save('keyforge_back_name.png')
 
 def main():
     # TODO: add logging
     image_map = load_image_map()
-    html = get_deck_page(URL_EXAMPLE)
+
+    options = webdriver.ChromeOptions()
+    options.add_argument('headless')
+    options.add_argument('window-size=1200x600')
+
+    driver = webdriver.Chrome(chrome_options=options)
+
+
+    driver.get(URL_EXAMPLE)
+#    html = get_deck_page(URL_EXAMPLE)
+    html = driver.page_source
+    print(html)
     deck = get_card_list(html)
     deck_images = list(map(lambda it: image_map[it], deck))
 
-    #Let's add back of the cards now :)
-    back = "./keyforge_back.png"
+    build_cardback()
+    back = "./keyforge_back_name.png"
     index = 9
     for i in range(4):
         for j in range(9):
