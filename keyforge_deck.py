@@ -17,11 +17,12 @@ from selenium.webdriver.common.by import By
 import time
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
+from fake_useragent import UserAgent
 
 
 
 # TODO: accept as parameter
-URL_EXAMPLE = "http://www.keyforgegame.com/deck-details/b8d160dc-36a8-4009-a85e-6690fc706f56"
+URL_EXAMPLE = "http://www.keyforgegame.com/deck-details/b5eab6c5-b5c6-49d2-93bd-b807377de1ba"
 
 
 # TODO: Select Expansion from Deck list
@@ -204,7 +205,10 @@ def main():
     options = webdriver.ChromeOptions()
     options.add_argument('headless')
     options.add_argument('window-size=1200x600')
-
+    ua = UserAgent()
+    userAgent = ua.safari
+    print(userAgent)
+    options.add_argument(f'user-agent={userAgent}')
     driver = webdriver.Chrome(chrome_options=options)
 
 
