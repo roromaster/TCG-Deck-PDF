@@ -40,6 +40,8 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64;)"
 
 DECK_NAME = "result.pdf"
 
+FILE_TO_CLEAN = []
+
 class HTMLParser(html.parser.HTMLParser):
     def __init__(self):
         super(HTMLParser, self).__init__()
@@ -79,13 +81,13 @@ class HTMLParser(html.parser.HTMLParser):
     def handle_data(self, data):
         if self.in_card_number_span:
             self.cards.append(int(data))
-            print(data)
+
         if self.in_deckname:
             self.deckname = data
-            print(self.deckname)
+
         if self.in_expansion:
             self.expansion = data
-            print(data)
+
 
 
 
@@ -147,9 +149,9 @@ def build_page( page_cards):
     convert(*[
         "(",
             "(",
-                "(", cs[0], cs[1], cs[2], "+append", ")",
-                "(", cs[3], cs[4], cs[5], "+append", ")",
-                "(", cs[6], cs[7], cs[8], "+append", ")",
+                "(", print_deckName(cs[0],fname + '0'), print_deckName(cs[1],fname + '1'), print_deckName(cs[2],fname + '2'), "+append", ")",
+                "(", print_deckName(cs[3],fname + '3'), print_deckName(cs[4],fname + '4'), print_deckName(cs[5],fname + '5'), "+append", ")",
+                "(", print_deckName(cs[6],fname + '6'), print_deckName(cs[7],fname + '7'), print_deckName(cs[8],fname + '8'), "+append", ")",
                 "-append",
             ")",
             "+repage",
@@ -159,11 +161,17 @@ def build_page( page_cards):
         "-border", "30",
         fname
     ])
+    global FILE_TO_CLEAN
+    for elmt in FILE_TO_CLEAN:
+        print("Deleting: " + elmt)
+        rm(elmt)
+    FILE_TO_CLEAN = []
     return fname
 
 
 def build_pdf(card_list):
     assert len(card_list) == 72, "Deck should consist of 36 cards"
+    print(card_list)
     fs = []
     # TODO: add card backs
     with Pool() as p:
@@ -174,6 +182,35 @@ def build_pdf(card_list):
     convert(*(fs  + [OUTPUT_FILE]))
     for f in fs:
         rm(f)
+
+def print_deckName(card, index):
+    para = textwrap.wrap(DECK_NAME, width=30)
+    global FILE_TO_CLEAN
+
+    if 'keyforge_back_name.png' in card:
+        return card
+
+    MAX_W, MAX_H = 50, 50
+    # create Image object with the input image
+    image = Image.open(card)
+    name = index +'.png'
+
+    # initialise the drawing context with
+    # the image object as background
+    draw = ImageDraw.Draw(image)
+    color = 'rgb(255, 255, 255)' # white color
+    font = ImageFont.truetype('Geneva.dfont', size=10)
+
+    current_h, pad = 385, 0
+    for line in para:
+        w, h = draw.textsize(line, font=font)
+        draw.text((133, current_h), line,fill=color, font=font)
+        current_h += h + pad
+    image.save(name)
+    FILE_TO_CLEAN.append(name)
+
+    return name
+
 
 def build_cardback():
     para = textwrap.wrap(DECK_NAME, width=30)
@@ -200,6 +237,7 @@ def build_cardback():
 
 def main():
     # TODO: add logging
+    global FILE_TO_CLEAN
     image_map = load_image_map()
 
     options = webdriver.ChromeOptions()
@@ -215,7 +253,6 @@ def main():
     driver.get(URL_EXAMPLE)
 #    html = get_deck_page(URL_EXAMPLE)
     html = driver.page_source
-    print(html)
     deck = get_card_list(html)
     deck_images = list(map(lambda it: image_map[it], deck))
 
