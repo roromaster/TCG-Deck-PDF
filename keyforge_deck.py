@@ -22,13 +22,15 @@ from fake_useragent import UserAgent
 
 
 # TODO: accept as parameter
-URL_EXAMPLE = "http://www.keyforgegame.com/deck-details/b5eab6c5-b5c6-49d2-93bd-b807377de1ba"
+#URL_EXAMPLE = "http://www.keyforgegame.com/deck-details/b5eab6c5-b5c6-49d2-93bd-b807377de1ba"
+#URL_EXAMPLE = "http://www.keyforgegame.com/deck-details/c426936b-d99c-49d7-b183-90d40d4e5af0"
+URL_EXAMPLE = "http://www.keyforgegame.com/deck-details/dc918b65-b517-40cc-9829-dcdb89ba8dc0"
 
 
 # TODO: Select Expansion from Deck list
-CARDS_PATH = "./cards/fr/Age of Ascension"
-#CARDS_PATH = "./cards/fr/Call of the Archons"
 
+CARDS_PATH = ""
+EXPANSION = ""
 
 CONVERT_PATH = '/usr/local/bin/convert'
 OUTPUT_FILE =  "./result.pdf"
@@ -43,7 +45,9 @@ DECK_NAME = "result.pdf"
 FILE_TO_CLEAN = []
 
 class HTMLParser(html.parser.HTMLParser):
+
     def __init__(self):
+        global CARDS_PATH
         super(HTMLParser, self).__init__()
         self.cards = []
         self.deckname = ""
@@ -127,10 +131,20 @@ def get_deck_page(url):
 def get_card_list(text):
     global OUTPUT_FILE
     global DECK_NAME
+    global CARDS_PATH
+    global EXPANSION
     parser = HTMLParser()
     parser.feed(text)
     OUTPUT_FILE = parser.deckname + ".pdf"
     DECK_NAME = parser.deckname
+    print("Expansion is: " +parser.expansion)
+    if 'Archons' in parser.expansion:
+        CARDS_PATH = "./cards/fr/Call of the Archons"
+        EXPANSION = "CoA"
+    if 'Ascension' in parser.expansion:
+        CARDS_PATH = "./cards/fr/Age of Ascension"
+        EXPANSION = "AoA"
+
     return parser.cards
 
 
@@ -185,6 +199,7 @@ def build_pdf(card_list):
 
 def print_deckName(card, index):
     para = textwrap.wrap(DECK_NAME, width=30)
+    para2 = textwrap.wrap(EXPANSION, width=10)
     global FILE_TO_CLEAN
 
     if 'keyforge_back_name.png' in card:
@@ -200,12 +215,19 @@ def print_deckName(card, index):
     draw = ImageDraw.Draw(image)
     color = 'rgb(255, 255, 255)' # white color
     font = ImageFont.truetype('Geneva.dfont', size=10)
-
+# Print Deck Name
     current_h, pad = 385, 0
     for line in para:
         w, h = draw.textsize(line, font=font)
         draw.text((133, current_h), line,fill=color, font=font)
         current_h += h + pad
+# Print Expansion Name
+    current_h, pad = 400, 0
+    for line in para2:
+        w, h = draw.textsize(line, font=font)
+        draw.text((100, current_h), line,fill=color, font=font)
+        current_h += h + pad
+
     image.save(name)
     FILE_TO_CLEAN.append(name)
 
@@ -238,7 +260,7 @@ def build_cardback():
 def main():
     # TODO: add logging
     global FILE_TO_CLEAN
-    image_map = load_image_map()
+
 
     options = webdriver.ChromeOptions()
     options.add_argument('headless')
@@ -254,6 +276,9 @@ def main():
 #    html = get_deck_page(URL_EXAMPLE)
     html = driver.page_source
     deck = get_card_list(html)
+    image_map = load_image_map()
+    print(image_map)
+
     deck_images = list(map(lambda it: image_map[it], deck))
 
     build_cardback()
