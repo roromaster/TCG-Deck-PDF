@@ -137,6 +137,7 @@ def get_card_list(text):
     parser.feed(text)
     OUTPUT_FILE = parser.deckname + ".pdf"
     DECK_NAME = parser.deckname
+    print("Deck Name: " + DECK_NAME)
     print("Expansion is: " +parser.expansion)
     if 'Archons' in parser.expansion:
         CARDS_PATH = "./cards/fr/Call of the Archons"
@@ -177,7 +178,6 @@ def build_page( page_cards):
     ])
     global FILE_TO_CLEAN
     for elmt in FILE_TO_CLEAN:
-        print("Deleting: " + elmt)
         rm(elmt)
     FILE_TO_CLEAN = []
     return fname
@@ -185,7 +185,6 @@ def build_page( page_cards):
 
 def build_pdf(card_list):
     assert len(card_list) == 72, "Deck should consist of 36 cards"
-    print(card_list)
     fs = []
     # TODO: add card backs
     with Pool() as p:
@@ -267,7 +266,6 @@ def main():
     options.add_argument('window-size=1200x600')
     ua = UserAgent()
     userAgent = ua.safari
-    print(userAgent)
     options.add_argument(f'user-agent={userAgent}')
     driver = webdriver.Chrome(chrome_options=options)
 
@@ -277,7 +275,6 @@ def main():
     html = driver.page_source
     deck = get_card_list(html)
     image_map = load_image_map()
-    print(image_map)
 
     deck_images = list(map(lambda it: image_map[it], deck))
 
